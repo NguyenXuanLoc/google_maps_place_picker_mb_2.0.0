@@ -5,10 +5,12 @@ version: 2.0.0-mb.22
 homepage: https://github.com/martin-braun/google_maps_place_picker_mb
 
 environment:
-  sdk: ">=2.15.0 <3.0.0"
-  flutter: ">=2.10.5"
+  sdk: '>=2.18.2 <3.0.0'
+  flutter: '>=3.3.4 <=3.3.4'
+
 
 dependencies:
+  dio: any
   flutter:
     sdk: flutter
   geolocator: ^9.0.1

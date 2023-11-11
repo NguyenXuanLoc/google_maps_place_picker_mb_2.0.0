@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_api_headers/google_api_headers.dart';
@@ -7,6 +8,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_maps_place_picker_mb/google_maps_place_picker.dart';
 import 'package:google_maps_place_picker_mb/providers/place_provider.dart';
 import 'package:google_maps_place_picker_mb/src/autocomplete_search.dart';
+import 'package:google_maps_place_picker_mb/src/constant.dart';
 import 'package:google_maps_place_picker_mb/src/controllers/autocomplete_search_controller.dart';
 import 'package:google_maps_place_picker_mb/src/google_map_place_picker.dart';
 import 'package:google_maps_webservice/places.dart';
@@ -396,28 +398,35 @@ class _PlacePickerState extends State<PlacePicker> {
     );
   }
 
+  Future<PlaceDetails?> getPlaceDetailById(String placeId) async {
+    try {
+      final response = await Dio().get(
+        'https://rsapi.goong.io/Place/Detail?place_id=$placeId&api_key=${Constant.goongApiKey}',
+      );
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          response.data != null) {
+       return PlaceDetails.fromJson(response.data['result']);
+      } else
+        return null;
+    } catch (ex) {
+      return null;
+    }
+  }
+
   _pickPrediction(Prediction prediction) async {
     provider!.placeSearchingState = SearchingState.Searching;
-
-    final PlacesDetailsResponse response = await provider!.places.getDetailsByPlaceId(
-      prediction.placeId!,
-      sessionToken: provider!.sessionToken,
-      language: widget.autocompleteLanguage,
-    );
-
-    if (response.errorMessage?.isNotEmpty == true || response.status == "REQUEST_DENIED") {
+    var placeDetail = await getPlaceDetailById(prediction.placeId ?? '');
+    if (placeDetail == null) {
       if (widget.onAutoCompleteFailed != null) {
-        widget.onAutoCompleteFailed!(response.status);
+        widget.onAutoCompleteFailed!('Not data');
       }
       return;
     }
-
-    provider!.selectedPlace = PickResult.fromPlaceDetailResult(response.result);
-
-    // Prevents searching again by camera movement.
+    provider!.selectedPlace = PickResult.fromPlaceDetailResult(placeDetail);
     provider!.isAutoCompleteSearching = true;
 
-    await _moveTo(provider!.selectedPlace!.geometry!.location.lat, provider!.selectedPlace!.geometry!.location.lng);
+    await _moveTo(provider!.selectedPlace!.geometry!.location.lat,
+        provider!.selectedPlace!.geometry!.location.lng);
 
     provider!.placeSearchingState = SearchingState.Idle;
   }

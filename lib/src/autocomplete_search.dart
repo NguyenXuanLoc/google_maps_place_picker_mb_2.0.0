@@ -8,7 +8,9 @@ import 'package:google_maps_place_picker_mb/src/components/prediction_tile.dart'
 import 'package:google_maps_place_picker_mb/src/controllers/autocomplete_search_controller.dart';
 import 'package:google_maps_webservice/places.dart';
 import 'package:provider/provider.dart';
+import 'package:dio/dio.dart';
 
+import 'constant.dart';
 class AutoCompleteSearch extends StatefulWidget {
   const AutoCompleteSearch(
       {Key? key,
@@ -274,30 +276,34 @@ class AutoCompleteSearchState extends State<AutoCompleteSearch> {
   }
 
   _performAutoCompleteSearch(String searchTerm) async {
-    PlaceProvider provider = PlaceProvider.of(context, listen: false);
-
     if (searchTerm.isNotEmpty) {
-      final PlacesAutocompleteResponse response = await provider.places.autocomplete(
-        searchTerm,
-        sessionToken: widget.sessionToken,
-        location: provider.currentPosition == null ? null : Location(lat: provider.currentPosition!.latitude, lng: provider.currentPosition!.longitude),
-        offset: widget.autocompleteOffset,
-        radius: widget.autocompleteRadius,
-        language: widget.autocompleteLanguage,
-        types: widget.autocompleteTypes ?? const [],
-        components: widget.autocompleteComponents ?? const [],
-        strictbounds: widget.strictbounds ?? false,
-        region: widget.region,
-      );
-
-      if (response.errorMessage?.isNotEmpty == true || response.status == "REQUEST_DENIED") {
+      //Todo
+      var response = await getAddress(searchTerm);
+      if (response == null) {
         if (widget.onSearchFailed != null) {
-          widget.onSearchFailed!(response.status);
+          widget.onSearchFailed!('Not data');
         }
         return;
       }
+      _displayOverlay(_buildPredictionOverlay(response));
+    }
+  }
 
-      _displayOverlay(_buildPredictionOverlay(response.predictions));
+  Future<List<Prediction>?> getAddress(String query) async {
+    try {
+      final response = await Dio().get('https://rsapi.goong.io/Place/' +
+          'AutoComplete?api_key=${Constant.goongApiKey}&location=20.8467333,106.6637271&input=$query');
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          response.data != null) {
+        var results = (response.data['predictions'] as List<dynamic>)
+            .map((element) => Prediction.fromJson(element))
+            .toList();
+        return results;
+        // print("TAG RESPONSE: ${response.data}");
+      } else
+        return null;
+    } catch (ex) {
+      return null;
     }
   }
 
